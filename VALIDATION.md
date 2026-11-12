@@ -1,0 +1,43 @@
+# Результаты проверки — 11 ноября 2026
+
+Проект создан в `C:\Users\SHLEPA\Desktop\test-irini` и запущен в Docker Desktop (Linux containers).
+
+## Выполнено
+
+- `npm run lint` — успешно, ошибок нет.
+- `npm run typecheck` — успешно для API и web.
+- `npm run build` — успешно; API и frontend также собираются внутри Docker.
+- `npx prettier --check .` — успешно.
+- `npm audit --omit=dev --audit-level=moderate` — 0 уязвимостей рабочих зависимостей.
+- `docker compose up --build -d` — успешно, миграция применена, demo seed выполнен, PostgreSQL и API healthy, Nginx запущен.
+- `docker compose --profile test up --build --abort-on-container-exit --exit-code-from tests tests` — успешно, **9/9 integration/e2e тестов** на отдельной PostgreSQL `intelligence_test`.
+- `node scripts/smoke.mjs` — проверены frontend, выдача JavaScript, `/api/health`, вход всех трёх пользователей, `/auth/me`, корректное количество доступных филиалов, ненулевые KPI и 30 дней графика через Nginx.
+
+## Интеграционные тесты
+
+1. Неавторизованный запрос → 401.
+2. CLIENT не получает чужую компанию через summary/timeseries/branches и не имеет доступа к companies.
+3. Чужой филиал через прямой URL и analytics → 404; список содержит только свою компанию.
+4. Повторный sync сохраняет одинаковые значения и не создаёт дубли.
+5. SUM двух филиалов, AVG по реальным отзывам с разным количеством, включение последнего дня UTC, нулевые дни, null/0 без отзывов.
+6. CLIENT не может синхронизировать; неверный CSRF и Origin отклоняются.
+7. Ошибка провайдера → 502 без изменений БД.
+8. Некорректные даты и неизвестные поля → 400.
+9. Logout очищает session cookie.
+
+## Ограничения проверки и предупреждения
+
+- Инструмента управления браузером в сессии нет: визуальный просмотр, взаимодействие с формами и адаптивность в настоящем браузере автоматически не проверены. HTTP-проверка frontend и полный API e2e выполнены.
+- Полный npm audit показывает 13 предупреждений только в dev-инструментах: 7 low (цепочка Jest/deepmerge) и 6 moderate (цепочка TypeScript ESLint/minimatch). Автоматический `--force` предлагает несовместимые понижения основных инструментов; они не применялись. High/critical предупреждений нет.
+- Vite предупреждает о JS chunk >500 kB и удаляет нераспознанные PURE-комментарии Zod; сборка завершается успешно. Разделение графиков в отдельный lazy chunk — возможная оптимизация.
+- Jest использует ESM с `--experimental-vm-modules` для совместимости с NestJS 12; предупреждение Node об экспериментальном VM API ожидаемо.
+- Windows не разрешила занять порт 5432; PostgreSQL этого проекта опубликован на **55432**. Чужие контейнеры не изменялись.
+
+## Что открыть
+
+- http://localhost:8080 — кабинет.
+- http://localhost:3000/docs — Swagger.
+- ADMIN: `admin@demo.local` / `Demo123!`.
+- CLIENT: `client-a@demo.local` или `client-b@demo.local` / `Demo123!`.
+
+Для локального просмотра ручная настройка не требуется. Ограничения MVP, архитектура, безопасность и план масштабирования описаны в README. Для production необходима отдельная настройка HTTPS, секретов и пользователей с отключением demo seed.

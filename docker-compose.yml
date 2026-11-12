@@ -1,0 +1,80 @@
+name: true-intelligence
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: intelligence
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo-local-database}
+      POSTGRES_DB: intelligence
+    ports: ['127.0.0.1:${POSTGRES_PORT:-55432}:5432']
+    volumes: ['postgres_data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U intelligence -d intelligence']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://intelligence:${POSTGRES_PASSWORD:-demo-local-database}@postgres:5432/intelligence?schema=public
+      JWT_SECRET: ${JWT_SECRET:-demo-only-change-before-production-at-least-32-chars}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      COOKIE_SECURE: 'false'
+      DEMO_SEED: 'true'
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports: ['127.0.0.1:${API_PORT:-3000}:3000']
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports: ['127.0.0.1:${WEB_PORT:-8080}:80']
+    depends_on:
+      api: { condition: service_healthy }
+  postgres-test:
+    image: postgres:16-alpine
+    profiles: ['test']
+    environment:
+      POSTGRES_USER: intelligence
+      POSTGRES_PASSWORD: test-only
+      POSTGRES_DB: intelligence_test
+    tmpfs: ['/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U intelligence -d intelligence_test']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  tests:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    profiles: ['test']
+    environment:
+      DATABASE_URL: postgresql://intelligence:test-only@postgres-test:5432/intelligence_test?schema=public
+      JWT_SECRET: test-only-jwt-secret-minimum-32-characters
+      NODE_ENV: test
+      WEB_ORIGIN: http://localhost:8080
+    depends_on:
+      postgres-test: { condition: service_healthy }
+    command:
+      [
+        'sh',
+        '-c',
+        'npm run migrate -w apps/api && npm run seed -w apps/api && npm test',
+      ]
+volumes:
+  postgres_data:
