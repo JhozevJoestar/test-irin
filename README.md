@@ -29,6 +29,42 @@ Compose ждёт PostgreSQL по healthcheck, применяет Prisma-мигр
 
 Две компании, четыре филиала, 90 дней метрик для каждого филиала и 66 отзывов. Seed использует стабильные ID и детерминированную функцию от филиала и календарной даты; диапазон отсчитывается от текущего дня UTC. Повторный seed не перезаписывает метрики и отзывы, но восстанавливает демонстрационные пароли пользователей. В production seed явно запрещён.
 
+## Запуск автоматизированных тестов
+
+Тесты находятся в [apps/api/test/app.spec.ts](apps/api/test/app.spec.ts). Используются Jest и Supertest: проверки выполняют HTTP-запросы к backend с настоящей PostgreSQL.
+
+1. Запустите Docker Desktop и дождитесь готовности Docker Engine.
+2. Откройте терминал в корне проекта, где находится `docker-compose.yml`.
+3. Запустите тесты:
+
+```sh
+docker compose --profile test up --build --abort-on-container-exit --exit-code-from tests tests
+```
+
+Docker автоматически создаст отдельную тестовую базу `intelligence_test`, применит миграции, добавит демонстрационные данные и запустит тесты. Устанавливать Node.js и выполнять `npm install` на компьютере не требуется. Основная база приложения не затрагивается.
+
+В файле реализовано 9 тестов. В частности, изоляцию компаний проверяют:
+
+- `CLIENT cannot read another company through summary, timeseries or branch list` — клиент компании A запрашивает данные компании B через API и получает `403`.
+- `CLIENT cannot read foreign branch directly or through analytics` — запрос чужого филиала напрямую и через аналитику возвращает `404`; список филиалов содержит только свою компанию.
+
+Также проверяются повторная синхронизация без дублей, агрегация статистики, обработка ошибки провайдера, авторизация, CSRF, валидация и выход из аккаунта.
+
+При успешном выполнении в терминале появится:
+
+```text
+PASS test/app.spec.ts
+Tests: 9 passed, 9 total
+```
+
+После проверки удалите тестовые контейнеры:
+
+```sh
+docker compose --profile test rm -sf tests postgres-test
+```
+
+Для повторного чистого прогона выполните команду запуска тестов ещё раз. При ошибке команда завершится с ненулевым кодом, а Jest покажет название проваленного теста и причину.
+
 ## Стек и архитектура
 
 npm workspaces, строгий TypeScript, NestJS 12, Prisma 6, PostgreSQL 16, React 18, Vite 6, React Router, TanStack Query, Tailwind CSS, Recharts, React Hook Form + Zod. UI использует доступные нативные select/input/button с label, focus, disabled, error и loading состояниями; иконки Lucide. Backend: bcrypt, JWT, class-validator, Helmet, Swagger. Проверки: ESLint, Prettier, Jest + Supertest.

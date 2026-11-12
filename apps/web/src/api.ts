@@ -3,6 +3,7 @@ export interface User {
   email: string;
   role: 'ADMIN' | 'CLIENT';
   companyId: string | null;
+  company: { id: string; name: string } | null;
   csrf: string;
 }
 export interface Company {

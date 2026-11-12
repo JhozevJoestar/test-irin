@@ -431,7 +431,9 @@ function Dashboard({ user }: { user: User }) {
           <h1>
             {id
               ? (branch.data?.name ?? 'Аналитика филиала')
-              : 'Обзор аналитики'}
+              : user.role === 'CLIENT' && user.company
+                ? `Обзор аналитики · ${user.company.name}`
+                : 'Обзор аналитики'}
           </h1>
           <p>
             {id

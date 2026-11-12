@@ -1,7 +1,3 @@
-# Результаты проверки — 11 ноября 2026
-
-Проект создан в `C:\Users\SHLEPA\Desktop\test-irini` и запущен в Docker Desktop (Linux containers).
-
 ## Выполнено
 
 - `npm run lint` — успешно, ошибок нет.

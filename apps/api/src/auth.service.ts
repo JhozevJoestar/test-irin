@@ -13,6 +13,7 @@ export type SessionUser = {
   email: string;
   role: 'ADMIN' | 'CLIENT';
   companyId: string | null;
+  company: { id: string; name: string } | null;
 };
 @Injectable()
 export class AuthService {
@@ -56,7 +57,13 @@ export class AuthService {
       );
       const user = await this.db.user.findUnique({
         where: { id: payload.sub },
-        select: { id: true, email: true, role: true, companyId: true },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          companyId: true,
+          company: { select: { id: true, name: true } },
+        },
       });
       if (!user || (user.role === 'CLIENT' && !user.companyId))
         throw new Error();
